@@ -65,16 +65,19 @@
 
 ## Запуск в Docker
 
-Нужны Docker Engine и Docker Compose v2 или новее. Node.js, Python, Chromium
-и база часовых поясов устанавливаются внутри образа. Контейнер запускается
-от пользователя `node`, без прав root.
+Нужны Docker Engine и Docker Compose v2 или новее. Готовый образ для Linux
+x86_64 (`linux/amd64`) собирается в GitHub Actions и публикуется как
+`ghcr.io/geomi737/dz-bot:latest`. Node.js, Python, Chromium и база часовых
+поясов уже включены. Контейнер запускается от пользователя `node`, без прав root.
+На сервере с 1 ГБ ОЗУ используй готовый образ: сборку на нём выполнять не нужно.
 
 1. Если `.env` ещё нет, скопируй `.env.example` в `.env` и заполни
    `DNEVNIK_TOKEN` и `GROUP_NAME` или `GROUP_ID`, как описано выше.
-2. Собери образ и запусти бота:
+2. Скачай готовый образ и запусти бота:
 
    ```bash
-   docker compose up -d --build
+   docker compose pull bot
+   docker compose up -d --no-build bot
    docker compose logs -f --no-log-prefix bot
    ```
 
@@ -96,15 +99,46 @@
 # Остановить и удалить контейнер, сохранив сессию
 docker compose down
 
-# Пересобрать и запустить после изменения кода или .env
-docker compose up -d --build
+# Обновить проект и образ без сборки на сервере
+git pull --ff-only
+docker compose pull bot
+docker compose up -d --no-build bot
+
+# Применить только изменения .env, не обновляя образ
+docker compose up -d --no-build bot
 
 # Проверить Python и формат сообщения внутри контейнера без обращения к API
 docker compose run --rm --no-deps bot python3 -m src.dnevnik.fetcher --demo
 ```
 
 `docker compose down -v` удаляет volumes, включая авторизацию WhatsApp.
-Для отдельной сборки образа без запуска используй `docker build -t dz-bot:local .`.
+
+### Публикация готового образа
+
+Workflow `.github/workflows/docker.yaml` запускается при изменении Dockerfile,
+зависимостей, исходников или тестов в `main`, а также вручную на вкладке Actions.
+Перед публикацией он проверяет Node.js, Python и запуск Chromium в контейнере.
+Образы получают тег `latest` и тег `sha-<полный SHA коммита>` для выбора
+конкретной версии через `BOT_IMAGE` в `.env`.
+
+После первой публикации владелец GitHub-аккаунта должен один раз открыть
+[настройки пакета](https://github.com/users/geomi737/packages/container/dz-bot/settings)
+и выбрать **Change visibility → Public**. До этого GHCR может возвращать
+`denied` при скачивании без авторизации. Публичность репозитория сама по себе
+не делает образ публичным. Новые версии сохраняют настройку видимости пакета.
+
+### Локальная сборка
+
+Для разработки на компьютере с достаточным объёмом памяти:
+
+```bash
+BOT_IMAGE=dz-bot:local docker compose up -d --build --pull never bot
+```
+
+Для отдельной сборки без запуска: `docker build -t dz-bot:local .`.
+На слабом сервере не используй `--build`: скачивание готового образа исключает
+нагрузку от установки Chromium и npm-зависимостей во время сборки. Расход памяти
+самого работающего бота при этом не меняется.
 
 ## Доступ к Дневник.ру
 

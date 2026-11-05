@@ -1,7 +1,7 @@
 services:
   bot:
     build: .
-    image: dz-bot:local
+    image: ${BOT_IMAGE:-ghcr.io/geomi737/dz-bot:latest}
     init: true
     restart: unless-stopped
     env_file:

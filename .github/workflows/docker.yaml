@@ -1,0 +1,78 @@
+name: Publish Docker image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/docker.yaml
+      - Dockerfile
+      - .dockerignore
+      - package.json
+      - package-lock.json
+      - src/**
+      - tests/**
+  workflow_dispatch:
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+
+      - name: Build image
+        run: >-
+          docker build --tag dz-bot:ci
+          --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY"
+          --label "org.opencontainers.image.revision=$GITHUB_SHA" .
+
+      - name: Test Node.js and Python inside the image
+        run: |
+          docker run --rm --network none --init \
+            --mount "type=bind,source=$PWD/tests,target=/app/tests,readonly" \
+            dz-bot:ci sh -c 'npm test && python3 -m unittest discover -s tests -v && python3 -m src.dnevnik.fetcher --demo'
+
+      - name: Check Chromium and container permissions
+        run: |
+          docker run --rm -i --network none --init --shm-size=256m dz-bot:ci node <<'JS'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          (async () => {
+            assert.notEqual(process.getuid(), 0);
+            assert.equal(fs.existsSync('/app/.env'), false);
+            for (const dir of ['/app/.wwebjs_auth', '/app/.wwebjs_cache']) {
+              fs.accessSync(dir, fs.constants.W_OK);
+            }
+            const browser = await require('puppeteer').launch({
+              headless: true,
+              args: ['--no-sandbox', '--disable-setuid-sandbox'],
+            });
+            try {
+              const page = await browser.newPage();
+              await page.setContent('<title>Docker smoke test</title>');
+              assert.equal(await page.title(), 'Docker smoke test');
+            } finally {
+              await browser.close();
+            }
+          })().catch(error => { console.error(error); process.exit(1); });
+          JS
+
+      - name: Publish tested image to GHCR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker tag dz-bot:ci "$IMAGE:sha-$GITHUB_SHA"
+          docker tag dz-bot:ci "$IMAGE:latest"
+          docker push "$IMAGE:sha-$GITHUB_SHA"
+          docker push "$IMAGE:latest"
