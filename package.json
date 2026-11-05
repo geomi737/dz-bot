@@ -1,0 +1,18 @@
+{
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.26.0"
+  },
+  "description": "WhatsApp-бот: ДЗ из Дневник.ру на сегодня до 10:00 и на завтра с 10:00, пауза 30 секунд",
+  "main": "src/whatsapp/bot.js",
+  "name": "dz-bot",
+  "private": true,
+  "scripts": {
+    "start": "node src/whatsapp/bot.js",
+    "test": "node --test tests/message-handler.test.js",
+    "test:python": ".venv/bin/python -m unittest discover -s tests -v",
+    "demo": ".venv/bin/python -m src.dnevnik.fetcher --demo"
+  },
+  "version": "0.1.0"
+}

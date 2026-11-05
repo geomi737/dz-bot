@@ -1,0 +1,15 @@
+.env
+.env.*
+!.env.example
+.venv/
+venv/
+node_modules/
+__pycache__/
+*.pyc
+.wwebjs_auth/
+.wwebjs_cache/
+.agents/
+.aws/
+.codex/
+*.log
+.DS_Store

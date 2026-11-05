@@ -1,0 +1,20 @@
+services:
+  bot:
+    build: .
+    image: dz-bot:local
+    init: true
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      # Пути внутри контейнера имеют приоритет над настройками хоста из .env.
+      PYTHON: python3
+      PUPPETEER_EXECUTABLE_PATH: /usr/bin/chromium
+    shm_size: 256mb
+    volumes:
+      - whatsapp_auth:/app/.wwebjs_auth
+      - whatsapp_cache:/app/.wwebjs_cache
+
+volumes:
+  whatsapp_auth:
+  whatsapp_cache:

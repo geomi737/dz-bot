@@ -1,0 +1,10 @@
+# В контекст сборки попадают только код и манифесты зависимостей.
+**
+!Dockerfile
+!.dockerignore
+!package.json
+!package-lock.json
+!src/
+!src/**
+**/__pycache__/
+**/*.py[cod]
